@@ -1,0 +1,20 @@
+build_exec(
+  EXECNAME multi_as_sim
+  SOURCE_FILES
+    main.cc
+    topology_builder.cc
+    intra_as_router.cc
+    inter_as_router.cc
+    traffic_generator.cc
+    metrics_collector.cc
+    scenario_config.cc
+  LIBRARIES_TO_LINK
+    ${libcore}
+    ${libnetwork}
+    ${libinternet}
+    ${libpoint-to-point}
+    ${libapplications}
+    ${libflow-monitor}
+    ${libnetanim}
+    ${libtraffic-control}
+)
