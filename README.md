@@ -1,0 +1,123 @@
+# Multi-AS Network Simulation in ns-3
+
+Parametric multi-autonomous-system network simulation built on **ns-3 42**.
+Models three interconnected ASes with BGP-like inter-domain policy routing,
+randomised intra-AS topologies, a timed link-failure/recovery scenario, and
+automated metric collection via FlowMonitor.
+
+---
+
+## Quickstart
+
+```bash
+# 1 — Clone the repository
+git clone https://github.com/<USER>/Multi-AS-Network-Simulation-in-ns-3.git
+cd Multi-AS-Network-Simulation-in-ns-3
+
+# 2 — Install ns-3.42 + NetAnim (≈ 30 min first run, idempotent)
+bash scripts/setup_macos_m2.sh
+
+# 3 — Verify everything works end-to-end
+bash scripts/smoke_test.sh          # expects "ALL SMOKE TESTS PASSED"
+
+# 4 — Run all 18 scenarios (6 topologies × 3 seeds)
+bash scripts/run_all_scenarios.sh                    # sequential, ~3 min/run
+bash scripts/run_all_scenarios.sh --parallel 4       # 4 concurrent, ~40 s total
+
+# 5 — Analyse results
+bash scripts/setup_analysis_env.sh                   # one-time Python venv setup
+source .venv/bin/activate
+LATEST=$(ls -1dt $HOME/ns3-workspace/ns-allinone-3.42/ns-3.42/scratch/multi_as/results/*/ \
+         | head -1)
+python3 scripts/aggregate_results.py --resultsDir "$LATEST"
+# → $LATEST/analysis/summary_table.md   (paste into report)
+# → $LATEST/analysis/*.png              (4 comparison plots)
+
+# 6 — Visualise in NetAnim
+$HOME/ns3-workspace/NetAnim-3.109/build/NetAnim \
+    "$LATEST/anim_50_balanced_run1.xml"
+# Red nodes = Border Routers · Blue = internal routers
+# At t = 20 s the AS1↔AS3 direct link fails; traffic reroutes via AS2.
+```
+
+> **macOS Apple Silicon only.** For other platforms adapt `setup_macos_m2.sh`.
+> Full setup guide: [`docs/INSTALL_macos.md`](docs/INSTALL_macos.md).
+
+---
+
+## What It Simulates
+
+| Aspect | Detail |
+|:-------|:-------|
+| Topology | 3 ASes, 2 border routers each, randomised intra-AS mesh |
+| Scale | 20 / 50 / 100 nodes × balanced / unbalanced distribution |
+| Intra-AS routing | `Ipv4GlobalRouting` (OSPF-like Dijkstra) |
+| Inter-AS routing | `Ipv4StaticRouting` with metric-based primary/backup policy |
+| Traffic | UDP OnOff flows, 5 Mbps, 4 + N/10 pairs per scenario |
+| Failure model | Link DOWN at t = 20 s, BGP hold-timer delay 2–5 s, recovery at t = 50 s |
+| Metrics | Per-flow delay, throughput, packet loss, BGP convergence time |
+| Animation | NetAnim XML with AS colour coding and inter-AS link labels |
+
+---
+
+## Repository Layout
+
+```
+scripts/
+  setup_macos_m2.sh       ns-3.42 + NetAnim installer (macOS arm64)
+  smoke_test.sh           7-step end-to-end verification
+  run_one_scenario.sh     single-run debug helper
+  run_all_scenarios.sh    18-run orchestrator (sequential / --parallel N)
+  aggregate_results.py    CSV aggregation + comparison plots
+  setup_analysis_env.sh   Python venv + pandas/matplotlib setup
+
+scratch/multi_as/
+  main.cc                 7-phase simulation driver
+  topology_builder.*      node creation, IP assignment, spanning-tree algorithm
+  intra_as_router.*       Ipv4GlobalRouting wrapper (OSPF-like)
+  inter_as_router.*       Ipv4StaticRouting + failure/recovery (BGP-like)
+  traffic_generator.*     OnOff + PacketSink UDP flows
+  metrics_collector.*     FlowMonitor wrapper + CSV export
+  scenario_config.*       CLI parameter struct
+
+report/
+  report.md               Project report (pandoc → PDF)
+  figures/                PNG plots copied from analysis output
+
+docs/
+  INSTALL_macos.md        Step-by-step setup and troubleshooting
+```
+
+---
+
+## Single-Scenario Debug Run
+
+```bash
+# Run one scenario with verbose output, short sim time:
+bash scripts/run_one_scenario.sh 20 balanced 1 30 10 42
+# Args: N  DIST  RUN_ID  SIM_TIME  FAILURE_TIME  SEED
+
+# Baseline (no failure injection):
+NO_FAILURE=1 bash scripts/run_one_scenario.sh 50 unbalanced
+```
+
+---
+
+## Compile the Report to PDF
+
+```bash
+brew install pandoc
+# LaTeX backend (optional, ~4 GB):
+brew install --cask mactex-no-gui
+
+cp "$LATEST/analysis"/*.png report/figures/
+pandoc report/report.md -o report/report.pdf \
+       --pdf-engine=xelatex \
+       --highlight-style=tango
+```
+
+---
+
+## License
+
+[MIT](LICENSE)
