@@ -11,8 +11,6 @@ NS_LOG_COMPONENT_DEFINE("BgpLikeRouter");
 
 namespace multias {
 
-// ── Helpers (file-local) ──────────────────────────────────────────────────────
-
 static const char* LinkIdToString(InterAsLinkId id)
 {
     switch (id) {
@@ -47,14 +45,10 @@ static uint32_t IfFor(ns3::Ptr<ns3::Node> node, ns3::Ptr<ns3::NetDevice> dev)
     return static_cast<uint32_t>(idx);
 }
 
-// ── Construction ──────────────────────────────────────────────────────────────
-
 BgpLikeRouter::BgpLikeRouter(const ScenarioConfig& cfg)
     : m_cfg(cfg)
 {
 }
-
-// ── GetStaticRouting ──────────────────────────────────────────────────────────
 
 ns3::Ptr<ns3::Ipv4StaticRouting>
 BgpLikeRouter::GetStaticRouting(ns3::Ptr<ns3::Node> node) const
@@ -66,8 +60,6 @@ BgpLikeRouter::GetStaticRouting(ns3::Ptr<ns3::Node> node) const
                   "did TopologyBuilder install ListRouting?");
     return sr;
 }
-
-// ── AddPolicyRoute ────────────────────────────────────────────────────────────
 
 void BgpLikeRouter::AddPolicyRoute(ns3::Ptr<ns3::Node>  node,
                                    ns3::Ipv4Address     destNet,
@@ -86,8 +78,6 @@ void BgpLikeRouter::AddPolicyRoute(ns3::Ptr<ns3::Node>  node,
 
     m_policyRoutes.push_back({viaLink, node, nextHop, destNet, destMask, ifIndex, metric});
 }
-
-// ── RemoveRoutesVia ───────────────────────────────────────────────────────────
 
 void BgpLikeRouter::RemoveRoutesVia(ns3::Ptr<ns3::Ipv4StaticRouting> sr,
                                     ns3::Ipv4Address                 nextHop)
@@ -108,31 +98,9 @@ void BgpLikeRouter::RemoveRoutesVia(ns3::Ptr<ns3::Ipv4StaticRouting> sr,
     }
 }
 
-// ── ConfigureBorderPolicies ───────────────────────────────────────────────────
-//
-// Link-index ↔ InterAsLink mapping (from TopologyBuilder::BuildInterAs):
-//   [0] AS1↔AS2 primary  src=AS1.BR_a  dst=AS2.BR_a  dev.Get(0/1) iface.GetAddress(0/1)
-//   [1] AS1↔AS2 backup   src=AS1.BR_b  dst=AS2.BR_b
-//   [2] AS2↔AS3 primary  src=AS2.BR_a  dst=AS3.BR_a
-//   [3] AS2↔AS3 backup   src=AS2.BR_b  dst=AS3.BR_b
-//   [4] AS1↔AS3 direct   src=AS1.BR_a  dst=AS3.BR_a
-//
-// Policy overview:
-//   AS1.BR_a : 10.2/16 → AS2.BR_a metric=50 (primary)
-//              10.3/16 → AS3.BR_a metric=30 (direct primary)
-//              10.3/16 → AS2.BR_a metric=80 (alternative via AS2, backup)
-//   AS1.BR_b : 10.2/16 → AS2.BR_b metric=50
-//              10.3/16 → AS2.BR_b metric=80 (no direct link, must route via AS2)
-//   AS2.BR_a : 10.1/16 → AS1.BR_a metric=50
-//              10.3/16 → AS3.BR_a metric=50
-//   AS2.BR_b : 10.1/16 → AS1.BR_b metric=50
-//              10.3/16 → AS3.BR_b metric=50
-//   AS3.BR_a : 10.2/16 → AS2.BR_a metric=50
-//              10.1/16 → AS1.BR_a metric=30 (direct primary)
-//              10.1/16 → AS2.BR_a metric=80 (alternative via AS2, backup)
-//   AS3.BR_b : 10.2/16 → AS2.BR_b metric=50
-//              10.1/16 → AS2.BR_b metric=80 (no direct link)
-
+// Link indices match BuildInterAs() order: [0]=AS1-AS2 pri, [1]=AS1-AS2 bk,
+// [2]=AS2-AS3 pri, [3]=AS2-AS3 bk, [4]=AS1-AS3 direct (fails at t=failureTime).
+// Primary metric=30 (AS1↔AS3 direct), backup metric=80 (via AS2).
 void BgpLikeRouter::ConfigureBorderPolicies(TopologyBuilder& topo)
 {
     m_topo = &topo;
@@ -273,8 +241,6 @@ void BgpLikeRouter::ConfigureBorderPolicies(TopologyBuilder& topo)
     NS_LOG_UNCOND("  AS1→AS2→AS3 (metric=80) is alternative path after failure");
 }
 
-// ── SetLinkDown / SetLinkUp ───────────────────────────────────────────────────
-
 void BgpLikeRouter::SetLinkDown(InterAsLinkId linkId)
 {
     NS_ASSERT_MSG(m_topo, "ConfigureBorderPolicies() must be called first");
@@ -311,8 +277,6 @@ void BgpLikeRouter::SetLinkUp(InterAsLinkId linkId)
     bringUp(link.devices.Get(1));
 }
 
-// ── ScheduleLinkFailure / TriggerFailure ──────────────────────────────────────
-
 void BgpLikeRouter::ScheduleLinkFailure(ns3::Time        at,
                                         InterAsLinkId    linkId,
                                         MetricsCollector& mc)
@@ -343,13 +307,6 @@ void BgpLikeRouter::TriggerFailure(InterAsLinkId linkId, MetricsCollector* mc)
     ns3::Simulator::Schedule(ns3::Seconds(convDelay),
                              &BgpLikeRouter::RecomputeBgpTables, this, linkId);
 }
-
-// ── RecomputeBgpTables ────────────────────────────────────────────────────────
-//
-// Called after the simulated BGP convergence delay.
-// Withdraws all static policy routes that used the failed link as their
-// next-hop gateway.  Any surviving routes (backup/alternative) were already
-// in the table with a higher metric — they become the best match immediately.
 
 void BgpLikeRouter::RecomputeBgpTables(InterAsLinkId linkId)
 {
@@ -384,8 +341,6 @@ void BgpLikeRouter::RecomputeBgpTables(InterAsLinkId linkId)
     NS_LOG_UNCOND("  Traffic rerouted via AS2 (metric=80 backup routes)");
     NS_LOG_UNCOND("  Path: AS1.BR_a → AS2.BR_a → AS3.BR_a");
 }
-
-// ── ScheduleLinkRecovery / TriggerRecovery ────────────────────────────────────
 
 void BgpLikeRouter::ScheduleLinkRecovery(ns3::Time at, InterAsLinkId linkId)
 {

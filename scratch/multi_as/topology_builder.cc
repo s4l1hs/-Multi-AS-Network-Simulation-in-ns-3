@@ -16,14 +16,10 @@ NS_LOG_COMPONENT_DEFINE("TopologyBuilder");
 
 namespace multias {
 
-// ── Construction ──────────────────────────────────────────────────────────────
-
 TopologyBuilder::TopologyBuilder(const ScenarioConfig& cfg)
     : m_cfg(cfg)
 {
 }
-
-// ── Public API ────────────────────────────────────────────────────────────────
 
 const ns3::NodeContainer& TopologyBuilder::GetAsNodes(uint32_t asId) const
 {
@@ -55,8 +51,6 @@ const std::vector<InterAsLink>& TopologyBuilder::GetInterAsLinks() const
     return m_interEdges;
 }
 
-// ── Build ─────────────────────────────────────────────────────────────────────
-
 void TopologyBuilder::Build()
 {
     // Reproducibility: must be set before any RandomVariable is consumed.
@@ -65,18 +59,15 @@ void TopologyBuilder::Build()
 
     m_rng = ns3::CreateObject<ns3::UniformRandomVariable>();
 
-    // ── Validate & compute per-AS sizes ───────────────────────────────────
     auto sizes = ComputeAsSize();
 
     NS_LOG_INFO("Node distribution: AS1=" << sizes[0]
                 << " AS2=" << sizes[1] << " AS3=" << sizes[2]);
 
-    // ── Create nodes ──────────────────────────────────────────────────────
     for (uint32_t i = 0; i < 3; ++i) {
         m_asNodes[i].Create(sizes[i]);
     }
 
-    // ── Install IPv4 stack with ListRouting on all nodes ─────────────────
     // Priority 10: Ipv4StaticRouting  — border routers use this for inter-AS
     //              policy routes; non-BR nodes have empty static tables and
     //              fall through to global routing automatically.
@@ -93,9 +84,7 @@ void TopologyBuilder::Build()
         internet.Install(m_asNodes[i]);
     }
 
-    // ── Initialise per-AS address helpers ─────────────────────────────────
     // Intra-AS: 10.{asId}.0.0/30, NewNetwork() advances by 4 each link.
-    // Capacity: 64 links per /24 block; wraps automatically into next block.
     m_intraAddrHelper[0].SetBase("10.1.0.0", "255.255.255.252");
     m_intraAddrHelper[1].SetBase("10.2.0.0", "255.255.255.252");
     m_intraAddrHelper[2].SetBase("10.3.0.0", "255.255.255.252");
@@ -103,7 +92,6 @@ void TopologyBuilder::Build()
     // Inter-AS: 172.16.1.0/30, 172.16.1.4/30, ... (5 links max)
     m_interAddrHelper.SetBase("172.16.1.0", "255.255.255.252");
 
-    // ── Build topology ────────────────────────────────────────────────────
     for (uint32_t i = 0; i < 3; ++i) {
         BuildIntraAs(i);
     }
@@ -111,8 +99,6 @@ void TopologyBuilder::Build()
 
     LogTopologySummary();
 }
-
-// ── ComputeAsSize ─────────────────────────────────────────────────────────────
 
 std::array<uint32_t, 3> TopologyBuilder::ComputeAsSize() const
 {
@@ -147,25 +133,8 @@ std::array<uint32_t, 3> TopologyBuilder::ComputeAsSize() const
     return sz;
 }
 
-// ── BuildIntraAs ──────────────────────────────────────────────────────────────
-//
-// Algorithm guarantees 2 vertex-disjoint paths between BR0 and BR1 for any N >= 2:
-//
-//  1. Divide interior nodes [2..N-1] into two groups via seeded shuffle +
-//     alternating assignment. Each group forms a random spanning tree hanging
-//     off its respective BR (BR0 → groupA, BR1 → groupB).
-//
-//  2. Cross-primary edge: direct BR0–BR1 link.
-//
-//  3. Cross-alternative edge: a non-BR node from groupA to a non-BR node from
-//     groupB (or directly to the opposite BR if only one interior node exists).
-//     Combined with (2), this creates two vertex-disjoint paths:
-//       • BR0 → BR1  (direct)
-//       • BR0 →…→ u → v →…→ BR1  (via interior nodes; no shared internals)
-//
-//  4. Extra random edges (max(2, N/4)) for additional OSPF shortest-path
-//     candidates.
-
+// Two-group spanning tree guarantees 2 vertex-disjoint BR0↔BR1 paths for any N >= 2.
+// Extra random edges add redundancy for OSPF multi-path candidates.
 void TopologyBuilder::BuildIntraAs(uint32_t asIdx)
 {
     const uint32_t n   = m_asNodes[asIdx].GetN();
@@ -201,7 +170,7 @@ void TopologyBuilder::BuildIntraAs(uint32_t asIdx)
         return true;
     };
 
-    // ── Phase 1: Two-group spanning trees ─────────────────────────────────
+    // Phase 1: Two-group spanning trees rooted at each BR.
     std::vector<uint32_t> groupA = {0}; // rooted at BR0
     std::vector<uint32_t> groupB = {1}; // rooted at BR1
 
@@ -229,8 +198,7 @@ void TopologyBuilder::BuildIntraAs(uint32_t asIdx)
         }
     }
 
-    // ── Phase 2: Cross edges ──────────────────────────────────────────────
-    // Primary: direct BR0-BR1.
+    // Phase 2: Cross edges — direct BR0-BR1 plus a non-BR cross edge.
     addEdge(0, 1);
 
     // Alternative: non-BR cross edge to guarantee a second vertex-disjoint path.
@@ -249,8 +217,7 @@ void TopologyBuilder::BuildIntraAs(uint32_t asIdx)
     }
     // n == 2: only the direct BR0-BR1 edge is possible; single path is unavoidable.
 
-    // ── Phase 3: Extra random edges ───────────────────────────────────────
-    // Adds redundancy for multiple OSPF shortest-path candidates; O(N) total.
+    // Phase 3: Extra random edges for OSPF shortest-path variety; O(N) total.
     const uint32_t extraTarget  = std::max(2u, n / 4);
     const uint32_t maxAttempts  = extraTarget * 20; // bounded, avoids dense-graph hang
     uint32_t       extraAdded   = 0;
@@ -264,17 +231,8 @@ void TopologyBuilder::BuildIntraAs(uint32_t asIdx)
     NS_LOG_INFO("AS" << asId << ": " << m_intraEdges[asIdx].size() << " intra links installed");
 }
 
-// ── BuildInterAs ─────────────────────────────────────────────────────────────
-//
-// Link matrix:
-//   AS1↔AS2 primary : BR(1,a) ↔ BR(2,a)   1 Gbps / 5 ms
-//   AS1↔AS2 backup  : BR(1,b) ↔ BR(2,b)   100 Mbps / 15 ms
-//   AS2↔AS3 primary : BR(2,a) ↔ BR(3,a)   1 Gbps / 5 ms
-//   AS2↔AS3 backup  : BR(2,b) ↔ BR(3,b)   100 Mbps / 15 ms
-//   AS1↔AS3 direct  : BR(1,a) ↔ BR(3,a)   1 Gbps / 5 ms
-//
-// When AS1↔AS3 direct fails, traffic reroutes AS1→AS2→AS3 via the peerings above.
-
+// 5 inter-AS links: AS1↔AS2 (primary+backup), AS2↔AS3 (primary+backup), AS1↔AS3 direct.
+// AS1↔AS3 direct is the preferred path (metric=30); reroutes via AS2 on failure.
 void TopologyBuilder::BuildInterAs()
 {
     NS_LOG_INFO("Building inter-AS links");
@@ -316,8 +274,6 @@ void TopologyBuilder::MakeInterLink(uint32_t srcAs, uint32_t dstAs,
     m_interEdges.push_back(std::move(link));
 }
 
-// ── LogTopologySummary ────────────────────────────────────────────────────────
-
 void TopologyBuilder::LogTopologySummary() const
 {
     uint32_t total = 0;
@@ -349,8 +305,6 @@ void TopologyBuilder::LogTopologySummary() const
     NS_LOG_UNCOND("========================");
 }
 
-// ── DumpTopologyJson ──────────────────────────────────────────────────────────
-
 void TopologyBuilder::DumpTopologyJson(const std::string& path) const
 {
     auto parent = std::filesystem::path(path).parent_path();
@@ -370,7 +324,6 @@ void TopologyBuilder::DumpTopologyJson(const std::string& path) const
     out << "  \"seed\": "             << m_cfg.seed             << ",\n";
     out << "  \"runId\": "            << m_cfg.runId            << ",\n";
 
-    // ── Autonomous systems ──────────────────────────────────────────────
     out << "  \"autonomousSystems\": [\n";
     for (uint32_t i = 0; i < 3; ++i) {
         out << "    {\n";
@@ -389,7 +342,6 @@ void TopologyBuilder::DumpTopologyJson(const std::string& path) const
     }
     out << "  ],\n";
 
-    // ── Inter-AS links ──────────────────────────────────────────────────
     out << "  \"interAsLinks\": [\n";
     for (size_t i = 0; i < m_interEdges.size(); ++i) {
         const auto& l = m_interEdges[i];

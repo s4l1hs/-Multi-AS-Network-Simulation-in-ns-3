@@ -41,10 +41,10 @@ public:
     // CSV columns:
     //   scenarioId,runId,nodeCount,distribution,flowId,srcAs,dstAs,
     //   meanDelayMs,throughputMbps,packetLossPct,convergenceSec,simTimeSec
-    void DumpCsv(const std::string& path, const ScenarioConfig& cfg) const;
+    void DumpCsv(const std::string& path, const ScenarioConfig& cfg);
 
     // Write ns-3 FlowMonitor XML (histograms + probes enabled).
-    void Dump() const;
+    void Dump();
 
     // Returns all recorded failure events (linkId, timestamp).
     const std::vector<std::pair<uint32_t, ns3::Time>>& GetFailureEvents() const;

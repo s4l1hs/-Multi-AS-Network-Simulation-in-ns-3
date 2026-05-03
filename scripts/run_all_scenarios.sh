@@ -193,9 +193,17 @@ if [[ "$PARALLEL" -le 1 ]]; then
         _run_sim "$JOB"
     done
 else
-    # Parallel — xargs spawns up to PARALLEL child bash processes
-    printf '%s\n' "${ALL_JOBS[@]}" \
-        | xargs -P "$PARALLEL" -L 1 bash -c '_run_sim "$@"' _
+    # Parallel — launch up to PARALLEL background jobs, then wait for all
+    _slots=0
+    for JOB in "${ALL_JOBS[@]}"; do
+        _run_sim "$JOB" &
+        (( _slots++ )) || true
+        if [[ $_slots -ge $PARALLEL ]]; then
+            wait -n 2>/dev/null || wait   # wait for any one slot to free
+            _slots=$(( _slots - 1 ))
+        fi
+    done
+    wait   # drain remaining jobs
 fi
 
 WALL_T1=$(date +%s)

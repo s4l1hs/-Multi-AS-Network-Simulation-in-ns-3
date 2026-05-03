@@ -64,10 +64,8 @@ MetricsCollector::GetFailureEvents() const
     return m_failureEvents;
 }
 
-// ── DumpCsv ───────────────────────────────────────────────────────────────────
-
 void MetricsCollector::DumpCsv(const std::string& path,
-                                const ScenarioConfig& cfg) const
+                                const ScenarioConfig& cfg)
 {
     NS_LOG_FUNCTION(this);
     if (!m_monitor) {
@@ -86,7 +84,6 @@ void MetricsCollector::DumpCsv(const std::string& path,
         return;
     }
 
-    // ── Header ────────────────────────────────────────────────────────────
     csv << "scenarioId,runId,nodeCount,distribution,"
            "flowId,srcAs,dstAs,"
            "meanDelayMs,throughputMbps,packetLossPct,"
@@ -110,7 +107,6 @@ void MetricsCollector::DumpCsv(const std::string& path,
     for (const auto& [fid, stat] : m_monitor->GetFlowStats()) {
         ns3::Ipv4FlowClassifier::FiveTuple ft = clf->FindFlow(fid);
 
-        // ── Per-flow metrics ──────────────────────────────────────────────
         double meanDelayMs = 0.0;
         if (stat.rxPackets > 0) {
             meanDelayMs = stat.delaySum.GetMicroSeconds()
@@ -133,7 +129,6 @@ void MetricsCollector::DumpCsv(const std::string& path,
                               / static_cast<double>(stat.txPackets)) * 100.0;
         }
 
-        // ── AS membership lookup via destination port ──────────────────────
         uint32_t srcAs = 0;
         uint32_t dstAs = 0;
         auto it = m_flowMeta.find(ft.destinationPort);
@@ -158,7 +153,6 @@ void MetricsCollector::DumpCsv(const std::string& path,
 
     NS_LOG_UNCOND("[Metrics] CSV written (" << numFlows << " flows): " << path);
 
-    // ── Summary CSV (single aggregate row) ───────────────────────────────
     std::filesystem::path p(path);
     std::string summaryPath =
         (p.parent_path() / (p.stem().string() + "_summary.csv")).string();
@@ -181,9 +175,7 @@ void MetricsCollector::DumpCsv(const std::string& path,
     }
 }
 
-// ── Dump (FlowMonitor XML) ────────────────────────────────────────────────────
-
-void MetricsCollector::Dump() const
+void MetricsCollector::Dump()
 {
     NS_LOG_FUNCTION(this);
     if (!m_monitor) {

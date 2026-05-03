@@ -18,8 +18,6 @@ TrafficGenerator::TrafficGenerator(const ScenarioConfig& cfg)
 {
 }
 
-// ── PickNonBr ─────────────────────────────────────────────────────────────────
-
 ns3::Ptr<ns3::Node>
 TrafficGenerator::PickNonBr(const TopologyBuilder&               topo,
                              uint32_t                             asId,
@@ -35,8 +33,6 @@ TrafficGenerator::PickNonBr(const TopologyBuilder&               topo,
     // Non-BR nodes occupy indices [2 .. n-1].
     return nodes.Get(rng->GetInteger(2, n - 1));
 }
-
-// ── GetNodeFirstIp ────────────────────────────────────────────────────────────
 
 ns3::Ipv4Address
 TrafficGenerator::GetNodeFirstIp(ns3::Ptr<ns3::Node> node) const
@@ -55,8 +51,6 @@ TrafficGenerator::GetNodeFirstIp(ns3::Ptr<ns3::Node> node) const
     return ns3::Ipv4Address("0.0.0.0"); // unreachable
 }
 
-// ── InstallFlows ──────────────────────────────────────────────────────────────
-
 ns3::ApplicationContainer
 TrafficGenerator::InstallFlows(const TopologyBuilder& topo,
                                 const ScenarioConfig&  cfg)
@@ -73,7 +67,6 @@ TrafficGenerator::InstallFlows(const TopologyBuilder& topo,
         return ns3::ApplicationContainer{};
     }
 
-    // ── Direction matrix ──────────────────────────────────────────────────
     // Base: 4 mandatory inter-AS pairs.
     // Extra: cfg.nodeCount/10 additional flows, cycling through an extended
     // set of directions (includes reverse directions for more variety).
@@ -102,7 +95,6 @@ TrafficGenerator::InstallFlows(const TopologyBuilder& topo,
         ns3::Ipv4Address dstAddr = GetNodeFirstIp(dstNode);
         const uint16_t   port    = nextPort++;
 
-        // ── PacketSink (receiver) ─────────────────────────────────────────
         ns3::PacketSinkHelper sinkHelper(
             "ns3::UdpSocketFactory",
             ns3::InetSocketAddress(ns3::Ipv4Address::GetAny(), port));
@@ -112,7 +104,6 @@ TrafficGenerator::InstallFlows(const TopologyBuilder& topo,
         sinkApp.Stop(ns3::Seconds(cfg.simTime));
         allApps.Add(sinkApp);
 
-        // ── OnOff source ──────────────────────────────────────────────────
         ns3::OnOffHelper onoff(
             "ns3::UdpSocketFactory",
             ns3::InetSocketAddress(dstAddr, port));

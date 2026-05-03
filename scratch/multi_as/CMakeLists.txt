@@ -17,4 +17,5 @@ build_exec(
     ${libflow-monitor}
     ${libnetanim}
     ${libtraffic-control}
+  EXECUTABLE_DIRECTORY_PATH ${CMAKE_OUTPUT_DIRECTORY}/scratch/multi_as/
 )

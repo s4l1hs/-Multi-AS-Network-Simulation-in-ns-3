@@ -14,6 +14,7 @@
 namespace ns3 {
 class Node;
 class UniformRandomVariable;
+class Ipv4StaticRouting;
 } // namespace ns3
 
 namespace multias {
