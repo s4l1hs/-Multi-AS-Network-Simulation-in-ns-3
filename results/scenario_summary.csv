@@ -1,0 +1,7 @@
+nodes,distribution,delay_mean_ms,delay_std_ms,throughput_mean_mbps,throughput_std_mbps,packet_loss_mean_pct,packet_loss_std_pct,convergence_mean_s,convergence_std_s,runs
+20,balanced,16.984,2.952,5.092,0.000,0.002,0.001,2.782,0.849,3
+20,unbalanced,16.931,1.646,4.980,0.194,0.003,0.000,2.782,0.849,3
+50,balanced,23.625,0.742,5.091,0.000,0.000,0.001,3.430,1.377,3
+50,unbalanced,17.391,1.798,5.092,0.000,0.002,0.001,3.430,1.377,3
+100,balanced,20.474,3.136,5.039,0.092,0.002,0.000,3.128,0.852,3
+100,unbalanced,23.649,2.119,4.984,0.093,0.002,0.000,3.128,0.852,3
