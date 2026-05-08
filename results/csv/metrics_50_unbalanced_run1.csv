@@ -1,0 +1,10 @@
+scenarioId,runId,nodeCount,distribution,flowId,srcAs,dstAs,meanDelayMs,throughputMbps,packetLossPct,convergenceSec,simTimeSec
+50_unbalanced,1,50,unbalanced,1,1,3,14.0147,5.0921,0.00842141,2.26161,60
+50_unbalanced,1,50,unbalanced,2,1,2,11.3828,5.09253,0,2.26161,60
+50_unbalanced,1,50,unbalanced,3,1,2,23.6048,5.09144,0,2.26161,60
+50_unbalanced,1,50,unbalanced,4,1,3,38.8491,5.09008,0,2.26161,60
+50_unbalanced,1,50,unbalanced,5,2,1,11.3765,5.09253,0,2.26161,60
+50_unbalanced,1,50,unbalanced,6,2,3,17.737,5.09196,0,2.26161,60
+50_unbalanced,1,50,unbalanced,7,2,3,25.725,5.09125,0,2.26161,60
+50_unbalanced,1,50,unbalanced,8,3,1,14.0147,5.0921,0.00842141,2.26161,60
+50_unbalanced,1,50,unbalanced,9,3,2,17.737,5.09196,0,2.26161,60
