@@ -265,9 +265,9 @@ Values are mean ± standard deviation across the three repeated runs of each sce
 100 & unbalanced & $23.65 \pm 2.12$ & $4.98 \pm 0.09$ & $0.002 \pm 0.000$ & $3.13 \pm 0.85$ \\
 \bottomrule
 \end{tabular}
-\caption*{\textbf{Table 8.} Scenario summary --- mean $\pm$ std across 3 repeated runs (seeds 2, 3, 4).
-Convergence time = interval between \texttt{Ipv4::SetDown()} and \texttt{RecomputeRoutingTables()} completion.}
 \end{table}
+\noindent\textbf{Table 8.} Scenario summary --- mean $\pm$ std across 3 repeated runs (seeds 2, 3, 4).
+Convergence time = interval between \texttt{Ipv4::SetDown()} and \texttt{RecomputeRoutingTables()} completion.
 ```
 
 ## Performance Plots
